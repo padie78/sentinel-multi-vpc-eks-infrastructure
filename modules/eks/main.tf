@@ -7,28 +7,30 @@ module "eks" {
 
   vpc_id                         = var.vpc_id
   subnet_ids                     = var.subnet_ids
-  cluster_endpoint_public_access = true # Necesario para que GitHub Actions pueda entrar
+  cluster_endpoint_public_access = true
 
-  # Gestión de Identidad (OIDC) - Crítico para usar Service Accounts en K8s
+  # --- GESTIÓN DE ROLES (Link con tu módulo IAM) ---
+  create_iam_role = false               # Evita que el módulo cree un rol genérico
+  iam_role_arn    = var.cluster_role_arn # Usa tu 'eks-sentinel-cluster-role'
+
   enable_irsa = true
 
-  # Configuración de los Nodos (Managed Node Groups)
   eks_managed_node_groups = {
     general = {
       instance_types = ["t3.medium"]
-      capacity_type  = "ON_DEMAND" # O "SPOT" si quieres demostrar ahorro de costos
+      capacity_type  = "ON_DEMAND"
 
       min_size     = 1
       max_size     = 3
       desired_size = 2
 
-      # Cumplimos con el prefijo solicitado en el test
-      iam_role_name = "eks-${var.cluster_name}-node-role"
+      # --- CONFIGURACIÓN DE ROLES DE NODO ---
+      create_iam_role = false             # Evita que cree un rol de nodo genérico
+      iam_role_arn    = var.node_role_arn # Usa tu 'eks-sentinel-node-role'
     }
   }
 
-  tags = {
-    Environment = "Challenge"
-    Project     = var.project_name
-  }
+  tags = merge(var.tags, {
+    Name = var.cluster_name
+  })
 }
