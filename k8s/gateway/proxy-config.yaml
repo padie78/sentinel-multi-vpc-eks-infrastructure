@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-proxy-config
+data:
+  default.conf: |
+    server {
+        listen 80;
+        location / {
+            # Aquí se usa la IP privada del Service del backend o DNS privado
+            # Para el test, asumimos que el tráfico fluye por el peering.
+            proxy_pass http://backend-service.default.svc.cluster.local;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
