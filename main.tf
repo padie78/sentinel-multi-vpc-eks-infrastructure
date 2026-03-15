@@ -1,99 +1,75 @@
-# ----------------------------------------------------------------              
-# 1. VARIABLES GLOBALES                                                         
-# ----------------------------------------------------------------              
-variable "project_name" {
-  type    = string
-  default = "sentinel"
+# --- 1. NETWORKING DINÁMICO ---
+module "vpcs" {
+  for_each             = var.vpcs
+  source               = "./modules/networking"
+  vpc_name             = "vpc-${each.key}"
+  vpc_cidr             = each.value.cidr
+  public_subnet_count  = each.value.public_subnet_count
+  private_subnet_count = each.value.private_subnet_count
+  enable_nat_gateway   = each.value.enable_nat_gateway
+  project_name         = var.project_name
+  tags                 = var.tags
 }
 
-variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-}
+# --- 2. CONECTIVIDAD: VPC PEERING ---
+resource "aws_vpc_peering_connection" "this" {
+  for_each = local.vpc_peerings
 
-# ----------------------------------------------------------------              
-# 2. NETWORKING: CREACIÓN DE VPCS AISLADAS                                      
-# ----------------------------------------------------------------              
-
-module "vpc_gateway" {
-  source             = "./modules/networking"
-  vpc_name           = "vpc-gateway"
-  vpc_cidr           = "10.0.0.0/16"
-  public_subnets     = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_subnets    = ["10.0.10.0/24", "10.0.11.0/24"]
-  enable_nat_gateway = true
-  project_name       = var.project_name
-}
-
-module "vpc_backend" {
-  source             = "./modules/networking"
-  vpc_name           = "vpc-backend"
-  vpc_cidr           = "10.1.0.0/16"
-  public_subnets     = ["10.1.1.0/24", "10.1.2.0/24"]
-  private_subnets    = ["10.1.10.0/24", "10.1.11.0/24"]
-  enable_nat_gateway = true
-  project_name       = var.project_name
-}
-
-# ----------------------------------------------------------------              
-# 3. CONECTIVIDAD: VPC PEERING Y RUTAS                                          
-# ----------------------------------------------------------------              
-
-resource "aws_vpc_peering_connection" "intra_sentinel" {
-  vpc_id      = module.vpc_gateway.vpc_id
-  peer_vpc_id = module.vpc_backend.vpc_id
+  vpc_id      = module.vpcs[each.value.source_key].vpc_id
+  peer_vpc_id = module.vpcs[each.value.dest_key].vpc_id
   auto_accept = true
 
-  tags = {
-    Name    = "peering-gateway-to-backend"
-    Project = var.project_name
-  }
+  tags = merge(var.tags, {
+    Name = "peering-${each.value.source_key}-to-${each.value.dest_key}"
+  })
 }
 
-resource "aws_route" "gtw_to_bkd" {
-  count                     = length(module.vpc_gateway.private_route_table_ids)
-  route_table_id            = module.vpc_gateway.private_route_table_ids[count.index]
-  destination_cidr_block    = module.vpc_backend.vpc_cidr_block
-  vpc_peering_connection_id = aws_vpc_peering_connection.intra_sentinel.id
+# Rutas dinámicas para el Peering (Reemplaza a los bloques manuales gtw_to_bkd y bkd_to_gtw)
+resource "aws_route" "peering_routes" {
+  for_each = local.vpc_peerings
+
+  # Accedemos a la tabla de ruteo de la VPC origen definida en locals
+  route_table_id         = module.vpcs[each.value.source_key].private_route_table_ids[0]
+  
+  # El destino es el CIDR de la VPC destino definida en locals
+  destination_cidr_block = module.vpcs[each.value.dest_key].vpc_cidr_block
+  
+  # El ID del peering correspondiente a esta conexión
+  vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id
 }
 
-resource "aws_route" "bkd_to_gtw" {
-  count                     = length(module.vpc_backend.private_route_table_ids)
-  route_table_id            = module.vpc_backend.private_route_table_ids[count.index]
-  destination_cidr_block    = module.vpc_gateway.vpc_cidr_block
-  vpc_peering_connection_id = aws_vpc_peering_connection.intra_sentinel.id
+# --- 3. CÓMPUTO: EKS DINÁMICO ---
+module "eks" {
+  for_each = var.vpcs
+  source   = "./modules/eks"
+
+  project_name   = var.project_name
+  github_repo    = var.github_repo
+  scaling_config = var.scaling_config
+  tags           = var.tags
+
+  cluster_name = "eks-${var.project_name}-${each.key}"
+  vpc_id       = module.vpcs[each.key].vpc_id
+  subnet_ids   = module.vpcs[each.key].private_subnets
+
+  kubernetes_version             = var.kubernetes_version
+  cluster_endpoint_public_access = var.cluster_endpoint_public_access
+  node_capacity_type             = var.node_capacity_type
+  instance_types                 = var.instance_types
+  create_eks_iam_role            = var.create_eks_iam_role
+  create_node_iam_role           = var.create_node_iam_role
 }
 
-# ----------------------------------------------------------------              
-# 4. CÓMPUTO: CLUSTERS EKS                                                       
-# ----------------------------------------------------------------              
+# --- 4. SEGURIDAD: REGLAS DE FIREWALL ---
+resource "aws_security_group_rule" "cross_vpc_traffic" {
+  for_each = local.security_rules
 
-module "eks_gateway" {
-  source       = "./modules/eks"
-  cluster_name = "eks-sentinel-gateway"
-  vpc_id       = module.vpc_gateway.vpc_id
-  subnet_ids   = module.vpc_gateway.private_subnets
-  project_name = var.project_name
-}
+  type              = each.value.type
+  from_port         = each.value.from_port
+  to_port           = each.value.to_port
+  protocol          = each.value.protocol
+  description       = each.value.description
 
-module "eks_backend" {
-  source       = "./modules/eks"
-  cluster_name = "eks-sentinel-backend"
-  vpc_id       = module.vpc_backend.vpc_id
-  subnet_ids   = module.vpc_backend.private_subnets
-  project_name = var.project_name
-}
-
-# ----------------------------------------------------------------              
-# 5. SEGURIDAD: REGLAS DE FIREWALL (Security Groups)                            
-# ----------------------------------------------------------------              
-
-resource "aws_security_group_rule" "allow_gateway_traffic" {
-  description       = "Permitir trafico desde la VPC Gateway hacia los nodos Backend"
-  type              = "ingress"
-  from_port         = 0
-  to_port           = 65535
-  protocol          = "tcp"
-  cidr_blocks       = [module.vpc_gateway.vpc_cidr_block]
-  security_group_id = module.eks_backend.node_security_group_id
+  cidr_blocks       = [module.vpcs[each.value.from_vpc].vpc_cidr_block]
+  security_group_id = module.eks[each.value.dest_eks].node_security_group_id
 }

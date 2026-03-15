@@ -1,28 +1,56 @@
-variable "cluster_role_arn" {
-  description = "ARN del rol de IAM para el clúster de EKS (creado en el módulo IAM)"
-  type        = string
+variable "project_name" { type = string }
+variable "cluster_name" { type = string }
+variable "tags"         { type = map(string) }
+
+# Networking inyectado
+variable "vpc_id"     { type = string }
+variable "subnet_ids" { type = list(string) }
+
+# EKS Config
+variable "kubernetes_version"             { 
+  type = string 
+  default = "1.28" 
+}
+
+variable "cluster_endpoint_public_access" { 
+  type = bool   
+  default = true 
+}
+
+# IAM (ARNs que vienen del módulo IAM raíz)
+variable "cluster_role_arn" { 
+    type = string 
+    default = null 
 }
 
 variable "node_role_arn" {
-  description = "ARN del rol de IAM para los nodos de EKS (creado en el módulo IAM)"
-  type        = string
+  type    = string
+  default = null
 }
 
-# Aprovecha para asegurarte de que estas también existan:
-variable "vpc_id" {
-  type = string
+# Capacity & Scaling
+variable "node_capacity_type" {
+  type    = string
+  default = "ON_DEMAND"
+}
+variable "instance_types" {
+  type    = list(string)
+  default = ["t3.medium"]
+}
+variable "scaling_config" {
+  type = object({
+    min_size     = number
+    max_size     = number
+    desired_size = number
+  })
 }
 
-variable "subnet_ids" {
-  type = list(string)
+# Flags
+variable "create_eks_iam_role" {
+  type    = bool
+  default = false
 }
-
-variable "cluster_name" {
-  type = string
-}
-
-variable "tags" {
-  description = "Mapa de etiquetas para los recursos del clúster"
-  type        = map(string)
-  default     = {}
+variable "create_node_iam_role" {
+  type    = bool
+  default = false
 }
