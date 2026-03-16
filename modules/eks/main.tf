@@ -21,7 +21,7 @@ module "eks" {
   create_iam_role = var.create_eks_iam_role
   
   # IMPORTANTE: Aquí pasamos el output del módulo IAM directamente
-  iam_role_arn    = module.iam.cluster_role_arn 
+  iam_role_arn    = var.cluster_role_arn
   
   enable_irsa     = var.enable_irsa
 

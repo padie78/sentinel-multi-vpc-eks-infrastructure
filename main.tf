@@ -43,6 +43,8 @@ module "eks" {
   # IAM Integration (vía outputs del módulo IAM)
   cluster_role_arn = module.iam.cluster_role_arn
   node_role_arn    = module.iam.node_role_arn
+  create_eks_iam_role = var.create_eks_iam_role
+  
 
   # EKS Configuration
   kubernetes_version             = var.kubernetes_version
@@ -51,7 +53,6 @@ module "eks" {
   node_capacity_type             = var.node_capacity_type
   scaling_config                 = var.scaling_config
   create_node_iam_role = var.create_node_iam_role
-
   tags = var.tags
 }
 
