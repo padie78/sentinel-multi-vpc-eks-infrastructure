@@ -10,7 +10,8 @@ locals {
   role_names = {
     cluster = "eks-${var.project_name}-cluster-role"
     node    = "eks-${var.project_name}-node-role"
-    github  = "${var.project_name}-github-actions-role"
+    # CAMBIO CRÍTICO: Se añade el prefijo 'sentinel-' para cumplir la SCP
+    github  = "sentinel-${var.project_name}-github-actions-role"
   }
 
   # ------------------------------------------------------------------
@@ -46,6 +47,10 @@ locals {
       Condition = {
         StringLike = {
           "${local.oidc_url}:sub" = "repo:${var.github_repo}:*"
+        }
+        # Recomendación de seguridad: Validar también el Audience
+        StringEquals = {
+          "${local.oidc_url}:aud" = "sts.amazonaws.com"
         }
       }
     }]

@@ -2,7 +2,7 @@
 # 1. PROVIDER & GLOBAL CONTEXT
 # ==========================================
 aws_region   = "us-west-1"
-project_name = "repyd-v4"
+project_name = "sentinel"
 
 # Comentamos las tags para evitar errores de permisos iam:TagRole
 # tags = {
@@ -23,12 +23,12 @@ vpcs = {
     private_subnet_count = 2
     enable_nat_gateway   = true
   },
-  # backend = {
-  #   cidr                 = "10.1.0.0/16"
-  #   public_subnet_count  = 2
-  #   private_subnet_count = 2
-  #   enable_nat_gateway   = true
-  # }
+  backend = {
+    cidr                 = "10.1.0.0/16"
+    public_subnet_count  = 2
+    private_subnet_count = 2
+    enable_nat_gateway   = true
+  }
 }
 
 # ==========================================
