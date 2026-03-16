@@ -50,6 +50,7 @@ module "eks" {
   instance_types                 = var.instance_types
   node_capacity_type             = var.node_capacity_type
   scaling_config                 = var.scaling_config
+  create_node_iam_role = var.create_node_iam_role
 
   tags = var.tags
 }

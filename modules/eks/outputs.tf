@@ -24,5 +24,5 @@ output "node_security_group_id" {
 
 output "oidc_provider_arn" {
   value       = module.eks.oidc_provider_arn
-  description = "ARN of the OIDC provider associated with the EKS cluster (if IRSA is enabled)"
+  description = "ARN of the OIDC provider associated with the EKS cluster"
 }

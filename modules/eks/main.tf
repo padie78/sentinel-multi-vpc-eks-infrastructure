@@ -13,12 +13,12 @@ module "eks" {
   subnet_ids                     = var.subnet_ids
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
 
-  # IAM (Usando los roles del módulo de IAM)
+  # IAM (Using external roles from the root/iam module)
   create_iam_role = var.create_eks_iam_role
   iam_role_arn    = var.cluster_role_arn
   enable_irsa     = var.enable_irsa
 
-  # Managed Node Groups
+  # Managed Node Groups (Aquí es donde entra la configuración de tu locals.tf)
   eks_managed_node_groups = local.managed_node_group_settings
 
   tags = local.cluster_tags

@@ -38,8 +38,8 @@ variable "kubernetes_version" {
 }
 
 variable "cluster_endpoint_public_access" {
-  type        = bool
-  default     = true
+  type    = bool
+  default = true
 }
 
 # ==========================================
@@ -48,21 +48,25 @@ variable "cluster_endpoint_public_access" {
 variable "create_eks_iam_role" {
   type        = bool
   default     = false
+  description = "Whether to create a new IAM role for the cluster"
 }
 
 variable "create_node_iam_role" {
   type        = bool
-  default     = false
+  default     = true
+  description = "Whether to create a new IAM role for the node groups"
 }
 
 variable "cluster_role_arn" {
   type        = string
   default     = null
+  description = "Existing IAM role ARN for the cluster control plane"
 }
 
 variable "node_role_arn" {
   type        = string
   default     = null
+  description = "Existing IAM role ARN for the worker nodes"
 }
 
 variable "enable_irsa" {

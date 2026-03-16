@@ -15,7 +15,7 @@ locals {
       max_size     = var.scaling_config.max_size
       desired_size = var.scaling_config.desired_size
 
-      # Integración de IAM externa
+      # External IAM Integration
       create_iam_role = var.create_node_iam_role
       iam_role_arn    = var.node_role_arn
       

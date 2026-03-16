@@ -1,21 +1,21 @@
 # ==========================================
 # IAM MODULE OUTPUTS
-# Exports Role ARNs for EKS and CI/CD integration
 # ==========================================
 
 output "cluster_role_arn" {
-  description = "The ARN of the IAM role for the EKS Cluster Control Plane"
-  # Accessing the "cluster" key from the dynamic aws_iam_role.roles resource
-  value       = aws_iam_role.roles["cluster"].arn
+  description = "ARN of the EKS Cluster IAM Role"
+  # lookup busca la clave "cluster" en el mapa 'roles'. 
+  # Si no existe, devuelve null en lugar de romper el despliegue.
+  value       = lookup(aws_iam_role.roles, "cluster", null) != null ? aws_iam_role.roles["cluster"].arn : null
 }
 
 output "node_role_arn" {
-  description = "The ARN of the IAM role for the EKS Worker Nodes"
-  # Accessing the "node" key from the dynamic aws_iam_role.roles resource
-  value       = aws_iam_role.roles["node"].arn
+  description = "ARN of the EKS Node Group IAM Role"
+  # Aplicamos la misma lógica para el rol de los nodos.
+  value       = lookup(aws_iam_role.roles, "node", null) != null ? aws_iam_role.roles["node"].arn : null
 }
 
 output "github_actions_role_arn" {
-  description = "The ARN of the IAM role used by the GitHub Actions CI/CD pipeline"
+  description = "ARN of the GitHub Actions OIDC Role"
   value       = aws_iam_role.github_actions_role.arn
 }
