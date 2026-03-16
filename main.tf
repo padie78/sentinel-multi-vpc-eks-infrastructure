@@ -6,18 +6,18 @@ module "iam" {
   project_name = var.project_name
   github_repo  = var.github_repo
   
-  # Forzamos la creación en IAM, pero sin etiquetas (dentro del módulo)
   create_eks_iam_role  = var.create_eks_iam_role
   create_node_iam_role = var.create_node_iam_role
   tags                 = var.tags
 }
 
 # ==========================================
-# 2. NETWORKING LAYER
+# 2. NETWORKING LAYER (Crea 2 VPCs)
 # ==========================================
 module "vpcs" {
   source   = "./modules/networking"
-  for_each = var.vpcs
+  # Iteramos sobre var.vpcs (debe contener "gateway" y "backend")
+  for_each = var.vpcs 
 
   project_name         = var.project_name
   vpc_name             = each.key
@@ -29,32 +29,31 @@ module "vpcs" {
 }
 
 # ==========================================
-# 3. COMPUTE: EKS CLUSTERS
+# 3. COMPUTE: EKS CLUSTERS (Crea 2 Clusters)
 # ==========================================
 module "eks" {
   source   = "./modules/eks"
-  for_each = var.vpcs
+  # Sincronizamos con las VPCs creadas arriba
+  for_each = var.vpcs 
 
   project_name = var.project_name
+  # Usamos el nombre del cluster según el local o simplemente el key
   cluster_name = local.cluster_names[each.key]
   
-  # Network Integration
+  # --- VINCULACIÓN DINÁMICA ---
+  # Cada cluster se mete en su VPC correspondiente usando el match de llaves
   vpc_id     = module.vpcs[each.key].vpc_id
   subnet_ids = module.vpcs[each.key].private_subnets
 
-  # --- EL CAMBIO CRÍTICO AQUÍ ---
-  # Pasamos los ARNs del módulo IAM
+  # Reutilizamos los roles del módulo IAM para ambos clusters
   cluster_role_arn = module.iam.cluster_role_arn
   node_role_arn    = module.iam.node_role_arn
   
-  # Le decimos al módulo de EKS que NO intente crear roles internos
-  # Asegúrate de que en tu modules/eks/main.tf uses estas variables
-  # para setear 'create_iam_role = false'
+  # Evitamos duplicidad de roles IAM dentro del módulo
   create_eks_iam_role  = false 
   create_node_iam_role = false
-  # ------------------------------
 
-  # EKS Configuration
+  # Configuración general
   kubernetes_version             = var.kubernetes_version
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
   instance_types                 = var.instance_types
@@ -67,34 +66,22 @@ module "eks" {
 # ==========================================
 # 4. CONNECTIVITY: PEERING & SECURITY
 # ==========================================
-# (Se mantiene igual, ya que depende de los IDs generados arriba)
-# resource "aws_vpc_peering_connection" "this" {
-#   for_each = local.vpc_peerings
+resource "aws_vpc_peering_connection" "this" {
+  for_each = local.vpc_peerings
 
-#   vpc_id      = module.vpcs[each.value.source_key].vpc_id
-#   peer_vpc_id = module.vpcs[each.value.dest_key].vpc_id
-#   auto_accept = true
+  # Conecta la VPC de origen con la de destino dinámicamente
+  vpc_id      = module.vpcs[each.value.source_key].vpc_id
+  peer_vpc_id = module.vpcs[each.value.dest_key].vpc_id
+  auto_accept = true
 
-#   tags = merge(var.tags, { Name = each.value.name })
-# }
+  tags = merge(var.tags, { Name = each.value.name })
+}
 
-# resource "aws_route" "peering_routes" {
-#   for_each = local.vpc_peerings
+resource "aws_route" "peering_routes" {
+  for_each = local.vpc_peerings
 
-#   route_table_id            = module.vpcs[each.value.source_key].private_route_table_ids[0]
-#   destination_cidr_block    = module.vpcs[each.value.dest_key].vpc_cidr_block
-#   vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id
-# }
-
-# resource "aws_security_group_rule" "cross_vpc_traffic" {
-#   for_each = local.security_rules
-
-#   type        = each.value.type
-#   from_port   = each.value.from_port
-#   to_port     = each.value.to_port
-#   protocol    = each.value.protocol
-#   description = each.value.description
-  
-#   cidr_blocks       = [module.vpcs[each.value.from_vpc].vpc_cidr_block]
-#   security_group_id = module.eks[each.value.dest_eks].node_security_group_id
-# }
+  # Agregamos la ruta en la tabla privada de la VPC origen hacia el CIDR de la destino
+  route_table_id            = module.vpcs[each.value.source_key].private_route_table_ids[0]
+  destination_cidr_block    = module.vpcs[each.value.dest_key].vpc_cidr_block
+  vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id
+}
