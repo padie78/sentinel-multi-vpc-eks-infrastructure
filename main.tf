@@ -68,33 +68,33 @@ module "eks" {
 # 4. CONNECTIVITY: PEERING & SECURITY
 # ==========================================
 # (Se mantiene igual, ya que depende de los IDs generados arriba)
-resource "aws_vpc_peering_connection" "this" {
-  for_each = local.vpc_peerings
+# resource "aws_vpc_peering_connection" "this" {
+#   for_each = local.vpc_peerings
 
-  vpc_id      = module.vpcs[each.value.source_key].vpc_id
-  peer_vpc_id = module.vpcs[each.value.dest_key].vpc_id
-  auto_accept = true
+#   vpc_id      = module.vpcs[each.value.source_key].vpc_id
+#   peer_vpc_id = module.vpcs[each.value.dest_key].vpc_id
+#   auto_accept = true
 
-  tags = merge(var.tags, { Name = each.value.name })
-}
+#   tags = merge(var.tags, { Name = each.value.name })
+# }
 
-resource "aws_route" "peering_routes" {
-  for_each = local.vpc_peerings
+# resource "aws_route" "peering_routes" {
+#   for_each = local.vpc_peerings
 
-  route_table_id            = module.vpcs[each.value.source_key].private_route_table_ids[0]
-  destination_cidr_block    = module.vpcs[each.value.dest_key].vpc_cidr_block
-  vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id
-}
+#   route_table_id            = module.vpcs[each.value.source_key].private_route_table_ids[0]
+#   destination_cidr_block    = module.vpcs[each.value.dest_key].vpc_cidr_block
+#   vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id
+# }
 
-resource "aws_security_group_rule" "cross_vpc_traffic" {
-  for_each = local.security_rules
+# resource "aws_security_group_rule" "cross_vpc_traffic" {
+#   for_each = local.security_rules
 
-  type        = each.value.type
-  from_port   = each.value.from_port
-  to_port     = each.value.to_port
-  protocol    = each.value.protocol
-  description = each.value.description
+#   type        = each.value.type
+#   from_port   = each.value.from_port
+#   to_port     = each.value.to_port
+#   protocol    = each.value.protocol
+#   description = each.value.description
   
-  cidr_blocks       = [module.vpcs[each.value.from_vpc].vpc_cidr_block]
-  security_group_id = module.eks[each.value.dest_eks].node_security_group_id
-}
+#   cidr_blocks       = [module.vpcs[each.value.from_vpc].vpc_cidr_block]
+#   security_group_id = module.eks[each.value.dest_eks].node_security_group_id
+# }
