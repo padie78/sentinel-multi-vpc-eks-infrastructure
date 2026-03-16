@@ -22,6 +22,9 @@ module "eks" {
   
   # IMPORTANTE: Aquí pasamos el output del módulo IAM directamente
   iam_role_arn    = var.cluster_role_arn
+
+  iam_role_use_name_prefix = false
+  create_cloudwatch_log_group = true # Cámbialo a true ahora que el CLI confirmó que no existen
   
   enable_irsa     = var.enable_irsa
 
