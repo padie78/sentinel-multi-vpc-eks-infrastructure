@@ -3,10 +3,9 @@ kind: Service
 metadata:
   name: gateway-public-lb
   annotations:
-    # Estas anotaciones le dicen a AWS que cree un Network Load Balancer público
-    service.beta.kubernetes.io/aws-load-balancer-type: "external"
-    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    # Crea un balanceador orientado a Internet
     service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
 spec:
   type: LoadBalancer
   selector:

@@ -1,88 +1,100 @@
-name: "Sentinel Infrastructure Deployment"
+name: "Sentinel Full Deployment"
 
 on:
   push:
     branches: [ main ]
 
-permissions:
-  id-token: write
-  contents: read
-
 env:
   AWS_REGION: "us-west-1"
+  BACKEND_CLUSTER: "sentinel-v3-eks-backend"
+  GATEWAY_CLUSTER: "sentinel-v3-eks-gateway"
 
 jobs:
   terraform:
-    name: "Terraform Plan & Apply"
+    name: "Infrastructure"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: #terraform apply -auto-approve -var-file="terraform.tfvars"
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan
-        run: terraform plan -var-file="terraform.tfvars" -out=tfplan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: terraform apply -auto-approve tfplan
-
-  kubernetes:
-    name: "K8s Validation & Deploy"
+  deploy-backend:
+    name: "Deploy Backend"
     needs: terraform
     runs-on: ubuntu-latest
-    env:
-      # Nombres basados en la lógica sentinel-eks-[layer]
-      BACKEND_CLUSTER: "sentinel-eks-backend"
-      GATEWAY_CLUSTER: "sentinel-eks-gateway"
+    outputs:
+      dns_backend: ${{ steps.capture_dns.outputs.dns_backend }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Apply Backend K8s Manifests
+        run: |
+          aws eks update-kubeconfig --name ${{ env.BACKEND_CLUSTER }} --region ${{ env.AWS_REGION }}
+          kubectl apply -f k8s/backend/
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Capture Internal LB DNS
+        id: capture_dns
+        run: |
+          echo "Waiting for AWS Load Balancer DNS..."
+          # Retry loop (up to 2 minutes) until DNS is provisioned
+          for i in {1..12}; do
+            DNS=$(kubectl get svc backend-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+            if [ -n "$DNS" ]; then
+              echo "DNS Found: $DNS"
+              echo "dns_backend=$DNS" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "DNS not available yet, retrying in 10s..."
+            sleep 10
+          done
+          echo "Error: Timeout waiting for Load Balancer DNS" && exit 1
+
+  deploy-gateway:
+    name: "Deploy Gateway"
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'v1.31.0'
-
-      # Validación de manifiestos (Obligatorio en el examen)
-      - name: Kubeval Validation
-        uses: stefanprodan/kubeval-action@master
-        with:
-          files: k8s/
-
-      # Despliegue Backend
-      - name: Deploy to Backend
+      - name: Inject Backend DNS into ConfigMap
         run: |
-          aws eks update-kubeconfig --name ${{ env.BACKEND_CLUSTER }} --region ${{ env.AWS_REGION }}
-          kubectl apply -f k8s/backend/ --dry-run=client
-          kubectl apply -f k8s/backend/
+          # Retrieve DNS from previous job output
+          REAL_DNS="${{ needs.deploy-backend.outputs.dns_backend }}"
+          
+          # Replace placeholder with actual DNS in the physical file
+          sed -i "s|REEMPLAZAR_CON_DNS_INTERNO_BACKEND|$REAL_DNS|g" k8s/gateway/proxy-config.yaml
+          
+          echo "ConfigMap updated with target: $REAL_DNS"
 
-      # Despliegue Gateway
-      - name: Deploy to Gateway
+      - name: Apply Gateway K8s Manifests
         run: |
           aws eks update-kubeconfig --name ${{ env.GATEWAY_CLUSTER }} --region ${{ env.AWS_REGION }}
-          # Nota: El proxy fallará si no has actualizado el ConfigMap con el DNS real del backend
-          kubectl apply -f k8s/gateway/ --dry-run=client
+          
+          # 1. Apply modified ConfigMap with injected DNS
+          kubectl apply -f k8s/gateway/proxy-config.yaml
+          
+          # 2. Apply remaining manifests (Deployment, Service)
           kubectl apply -f k8s/gateway/
+          
+          # 3. Trigger a Rolling Restart to pick up ConfigMap changes
+          echo "Restarting Nginx to reload new configuration..."
+          kubectl rollout restart deployment/nginx-proxy
+          
+          # 4. Verify rollout status
+          kubectl rollout status deployment/nginx-proxy

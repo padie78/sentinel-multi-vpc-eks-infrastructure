@@ -6,11 +6,18 @@ data:
   default.conf: |
     server {
         listen 80;
+
         location / {
-            # Aquí se usa la IP privada del Service del backend o DNS privado
-            # Para el test, asumimos que el tráfico fluye por el peering.
-            proxy_pass http://backend-service.default.svc.cluster.local;
+            # El Workflow reemplazará la siguiente línea con el DNS real del NLB
+            proxy_pass http://REEMPLAZAR_CON_DNS_INTERNO_BACKEND;           
+            
+            # Configuraciones recomendadas para que el proxy pase bien las cabeceras
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            
+            # Tiempos de espera para evitar que el Gateway se quede colgado
+            proxy_connect_timeout 10s;
+            proxy_read_timeout 10s;
         }
     }

@@ -69,7 +69,7 @@ variable "node_role_arn" {
 
 variable "enable_irsa" {
   type        = bool
-  default     = true
+  default     = false
 }
 
 # ==========================================

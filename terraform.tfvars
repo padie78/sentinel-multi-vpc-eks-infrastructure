@@ -21,13 +21,15 @@ vpcs = {
     cidr                 = "10.0.0.0/16"
     public_subnet_count  = 2
     private_subnet_count = 2
-    enable_nat_gateway   = false
+    enable_nat_gateway   = true
+    single_nat_gateway   = true
   },
   backend = {
     cidr                 = "10.1.0.0/16"
     public_subnet_count  = 2
     private_subnet_count = 2
-    enable_nat_gateway   = false
+    enable_nat_gateway   = true
+    single_nat_gateway   = true
   }
 }
 
