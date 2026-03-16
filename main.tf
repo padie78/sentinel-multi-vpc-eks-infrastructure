@@ -5,6 +5,8 @@ module "iam" {
   source       = "./modules/iam"
   project_name = var.project_name
   github_repo  = var.github_repo
+  create_eks_iam_role  = var.create_eks_iam_role
+  create_node_iam_role = var.create_node_iam_role
   tags         = var.tags
 }
 

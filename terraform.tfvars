@@ -4,13 +4,14 @@
 aws_region   = "us-west-1"
 project_name = "sentinel"
 
-tags = {
-  Project      = "Sentinel"
-  Environment  = "Challenge"
-  Owner        = "Diego Hernan Liascovich"
-  ManagedBy    = "Terraform"
-  Architecture = "Multi-VPC-Peering"
-}
+# Comentamos las tags para evitar errores de permisos iam:TagRole
+# tags = {
+#   Project      = "Sentinel"
+#   Environment  = "Challenge"
+#   Owner        = "Diego Hernan Liascovich"
+#   ManagedBy    = "Terraform"
+#   Architecture = "Multi-VPC-Peering"
+# }
 
 # ==========================================
 # 2. NETWORKING

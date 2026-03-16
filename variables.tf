@@ -63,3 +63,16 @@ variable "scaling_config" {
     desired_size = number
   })
 }
+
+# ==========================================
+# 4. SECURITY & IAM (Variables añadidas)
+# ==========================================
+variable "create_eks_iam_role" {
+  type    = bool
+  default = false
+}
+
+variable "create_node_iam_role" {
+  type    = bool
+  default = false
+}

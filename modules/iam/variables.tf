@@ -36,8 +36,20 @@ variable "node_policy_arns" {
 }
 
 # ==========================================
-# 3. SERVICE CONFIGURATION
+# 3. SERVICE CONFIGURATION & CONTROL (Variables añadidas)
 # ==========================================
+
+variable "create_eks_iam_role" {
+  type        = bool
+  default     = true
+  description = "Toggle to enable/disable EKS Cluster role creation"
+}
+
+variable "create_node_iam_role" {
+  type        = bool
+  default     = true
+  description = "Toggle to enable/disable EKS Node role creation"
+}
 
 variable "service_principals" {
   type = map(string)
