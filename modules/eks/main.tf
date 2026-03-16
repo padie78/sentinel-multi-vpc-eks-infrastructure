@@ -8,11 +8,11 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
 
-  # Desactivamos KMS para evitar errores de políticas con valores null
-  create_kms_key              = false
+  # KMS configuration pulled from centralized feature toggles
+  create_kms_key              = local.create_kms_key
   cluster_encryption_config   = {}
 
-  # Networking
+  # Networking Configuration
   vpc_id                         = var.vpc_id
   subnet_ids                     = var.subnet_ids
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
@@ -20,34 +20,32 @@ module "eks" {
   # ==========================================
   # IAM: CLUSTER CONTROL PLANE
   # ==========================================
-  # Usamos el rol que viene desde la raíz (creado en modules/iam)
-  create_iam_role          = var.create_eks_iam_role # Será 'false'
+  # Utilizing external roles provisioned in the IAM module to maintain SOC2/Compliance standards
+  create_iam_role          = var.create_eks_iam_role 
   iam_role_arn             = var.cluster_role_arn
-  iam_role_use_name_prefix = false
+  iam_role_use_name_prefix = local.iam_role_use_name_prefix
   
   # ==========================================
   # IAM: MANAGED NODE GROUPS
   # ==========================================
-  # Aplicamos la configuración de IAM a TODOS los node groups por defecto
+  # Global defaults for all node groups using pre-provisioned IAM roles
   eks_managed_node_group_defaults = {
-    create_iam_role = var.create_node_iam_role # Será 'false'
-    iam_role_arn    = var.node_role_arn        # Pasamos el ARN de tu módulo IAM
+    create_iam_role = var.create_node_iam_role 
+    iam_role_arn    = var.node_role_arn        
   }
 
-  # Configuración específica de los nodos (instancias, capacidad, etc.)
+  # Managed Node Group specifications (capacity, instance types, and scaling)
   eks_managed_node_groups = local.managed_node_group_settings
 
   # ==========================================
-  # LOGS & AUTH
+  # LOGGING & AUTHENTICATION
   # ==========================================
-  # Desactivamos la creación automática de Log Groups para evitar el error 
-  # 'ResourceAlreadyExistsException' que vimos en el apply anterior.
-  create_cloudwatch_log_group = false 
-  
-  # Desactiva la gestión automática para evitar el error de conexión al principio
-  manage_aws_auth_configmap = false 
+  # Operational flags managed in locals.tf to handle resource conflicts and drift
+  create_cloudwatch_log_group = local.create_cloudwatch_log_group 
+  manage_aws_auth_configmap   = local.manage_aws_auth_configmap   
   
   enable_irsa = var.enable_irsa
 
+  # Combined global and resource-specific tags
   tags = local.cluster_tags
 }

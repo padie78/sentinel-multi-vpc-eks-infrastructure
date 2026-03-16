@@ -12,11 +12,11 @@ module "iam" {
 }
 
 # ==========================================
-# 2. NETWORKING LAYER (Crea 2 VPCs)
+# 2. NETWORKING LAYER (Provision 2 VPCs)
 # ==========================================
 module "vpcs" {
   source   = "./modules/networking"
-  # Iteramos sobre var.vpcs (debe contener "gateway" y "backend")
+  # Iterate over var.vpcs (expected keys: "gateway" and "backend")
   for_each = var.vpcs 
 
   project_name         = var.project_name
@@ -29,31 +29,31 @@ module "vpcs" {
 }
 
 # ==========================================
-# 3. COMPUTE: EKS CLUSTERS (Crea 2 Clusters)
+# 3. COMPUTE: EKS CLUSTERS (Provision 2 Clusters)
 # ==========================================
 module "eks" {
   source   = "./modules/eks"
-  # Sincronizamos con las VPCs creadas arriba
+  # Sync with the VPCs provisioned above
   for_each = var.vpcs 
 
   project_name = var.project_name
-  # Usamos el nombre del cluster según el local o simplemente el key
+  # Resolve cluster name based on locals or map keys
   cluster_name = local.cluster_names[each.key]
   
-  # --- VINCULACIÓN DINÁMICA ---
-  # Cada cluster se mete en su VPC correspondiente usando el match de llaves
+  # --- DYNAMIC NETWORK BINDING ---
+  # Assigns each cluster to its corresponding VPC and private subnets
   vpc_id     = module.vpcs[each.key].vpc_id
   subnet_ids = module.vpcs[each.key].private_subnets
 
-  # Reutilizamos los roles del módulo IAM para ambos clusters
+  # Reuse IAM roles from the central IAM module for both clusters
   cluster_role_arn = module.iam.cluster_role_arn
   node_role_arn    = module.iam.node_role_arn
   
-  # Evitamos duplicidad de roles IAM dentro del módulo
-  create_eks_iam_role  = false 
-  create_node_iam_role = false
+  # Prevent IAM role duplication within the EKS module
+  create_eks_iam_role  = var.create_eks_iam_role
+  create_node_iam_role = var.create_node_iam_role
 
-  # Configuración general
+  # General Configuration
   kubernetes_version             = var.kubernetes_version
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
   instance_types                 = var.instance_types
@@ -64,12 +64,12 @@ module "eks" {
 }
 
 # ==========================================
-# 4. CONNECTIVITY: PEERING & SECURITY
+# 4. CONNECTIVITY: PEERING & ROUTING
 # ==========================================
 resource "aws_vpc_peering_connection" "this" {
   for_each = local.vpc_peerings
 
-  # Conecta la VPC de origen con la de destino dinámicamente
+  # Establish dynamic peering between source and destination VPCs
   vpc_id      = module.vpcs[each.value.source_key].vpc_id
   peer_vpc_id = module.vpcs[each.value.dest_key].vpc_id
   auto_accept = true
@@ -80,7 +80,7 @@ resource "aws_vpc_peering_connection" "this" {
 resource "aws_route" "peering_routes" {
   for_each = local.vpc_peerings
 
-  # Agregamos la ruta en la tabla privada de la VPC origen hacia el CIDR de la destino
+  # Inject route into the source VPC private route table pointing to the destination CIDR
   route_table_id            = module.vpcs[each.value.source_key].private_route_table_ids[0]
   destination_cidr_block    = module.vpcs[each.value.dest_key].vpc_cidr_block
   vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id

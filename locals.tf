@@ -25,19 +25,4 @@ locals {
       name       = "${var.project_name}-peering-be-to-gw"
     }
   }
-
-  # ------------------------------------------------------------------
-  # CROSS-VPC SECURITY RULES
-  # ------------------------------------------------------------------
-  security_rules = {
-    "gw_to_be_tcp" = {
-      type        = "ingress"
-      from_port   = 0
-      to_port     = 65535
-      protocol    = "tcp"
-      from_vpc    = "gateway"
-      dest_eks    = "backend"
-      description = "Allow all inbound TCP traffic from Gateway VPC"
-    }
-  }
 }

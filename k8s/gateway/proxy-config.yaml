@@ -8,15 +8,15 @@ data:
         listen 80;
 
         location / {
-            # El Workflow reemplazará la siguiente línea con el DNS real del NLB
+            # The CI/CD Workflow will replace the following placeholder with the actual Backend NLB DNS
             proxy_pass http://REEMPLAZAR_CON_DNS_INTERNO_BACKEND;           
             
-            # Configuraciones recomendadas para que el proxy pase bien las cabeceras
+            # Standard proxy headers to ensure correct traffic forwarding
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             
-            # Tiempos de espera para evitar que el Gateway se quede colgado
+            # Timeout settings to prevent the Gateway from hanging on upstream delays
             proxy_connect_timeout 10s;
             proxy_read_timeout 10s;
         }

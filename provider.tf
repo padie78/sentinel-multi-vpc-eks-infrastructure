@@ -6,8 +6,8 @@ terraform {
   required_version = ">= 1.5.0"
 
   backend "s3" {
-    bucket         = "sentinel-v3-state-1773670439" # Reemplaza con el nombre real del bucket del cliente
-    key            = "terraform/state/sentinel-v3.tfstate" # Ruta donde se guardará el archivo dentro del bucket
+    bucket         = "sentinel-v3-state-1773670439"
+    key            = "terraform/state/sentinel-v3.tfstate"
     region         = "us-west-1"
     encrypt        = true
   }
@@ -17,7 +17,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    # Añadimos el provider de Kubernetes
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
