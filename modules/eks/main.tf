@@ -8,6 +8,9 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
 
+  create_kms_key              = false
+  cluster_encryption_config   = {}
+
   # Networking
   vpc_id                         = var.vpc_id
   subnet_ids                     = var.subnet_ids
