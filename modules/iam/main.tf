@@ -7,7 +7,6 @@ data "aws_caller_identity" "current" {}
 # 2. DYNAMIC SERVICE ROLES (Cluster & Node)
 # ==========================================
 resource "aws_iam_role" "roles" {
-  # Filter the original map based on boolean control variables
   for_each = {
     for k, v in var.service_principals : k => v 
     if (k == "cluster" && var.create_eks_iam_role) || (k == "node" && var.create_node_iam_role)
@@ -16,8 +15,8 @@ resource "aws_iam_role" "roles" {
   name               = each.key == "cluster" ? local.role_names.cluster : local.role_names.node
   assume_role_policy = local.service_trust_policies[each.key]
 
-  # Tags are commented out to prevent 'iam:TagRole' permission errors in restricted environments
-  # tags = var.tags
+  # IMPORTANTE: Asegúrate de que las etiquetas estén borradas o comentadas así:
+  # tags = var.tags 
 }
 
 # ==========================================
