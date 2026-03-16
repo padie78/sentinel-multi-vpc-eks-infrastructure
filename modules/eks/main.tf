@@ -30,6 +30,7 @@ module "eks" {
 
   # Managed Node Groups (Configurados en tu locals.tf)
   eks_managed_node_groups = local.managed_node_group_settings
+  manage_aws_auth_configmap = false # Desactiva la gestión automática para evitar el error
 
   tags = local.cluster_tags
 }
