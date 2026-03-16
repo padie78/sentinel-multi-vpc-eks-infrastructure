@@ -8,6 +8,7 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
 
+  # Desactivamos KMS para evitar errores de políticas con valores null
   create_kms_key              = false
   cluster_encryption_config   = {}
 
@@ -16,12 +17,15 @@ module "eks" {
   subnet_ids                     = var.subnet_ids
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
 
-  # IAM (Using external roles from the root/iam module)
+  # IAM (Conexión directa con tu módulo local de IAM)
   create_iam_role = var.create_eks_iam_role
-  iam_role_arn    = var.cluster_role_arn
+  
+  # IMPORTANTE: Aquí pasamos el output del módulo IAM directamente
+  iam_role_arn    = module.iam.cluster_role_arn 
+  
   enable_irsa     = var.enable_irsa
 
-  # Managed Node Groups (Aquí es donde entra la configuración de tu locals.tf)
+  # Managed Node Groups (Configurados en tu locals.tf)
   eks_managed_node_groups = local.managed_node_group_settings
 
   tags = local.cluster_tags

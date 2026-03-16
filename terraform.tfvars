@@ -52,6 +52,6 @@ scaling_config = {
 # ==========================================
 # 5. SECURITY & IAM
 # ==========================================
-create_eks_iam_role  = false
-create_node_iam_role = false
+create_eks_iam_role  = true
+create_node_iam_role = true
 github_repo          = "padie78/sentinel-multi-vpc-eks-infrastructure"
