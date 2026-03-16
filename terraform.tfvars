@@ -2,7 +2,7 @@
 # 1. PROVIDER & GLOBAL CONTEXT
 # ==========================================
 aws_region   = "us-west-1"
-project_name = "sentinel"
+project_name = "repyd-v4"
 
 # Comentamos las tags para evitar errores de permisos iam:TagRole
 # tags = {
@@ -23,12 +23,12 @@ vpcs = {
     private_subnet_count = 2
     enable_nat_gateway   = true
   },
-  backend = {
-    cidr                 = "10.1.0.0/16"
-    public_subnet_count  = 2
-    private_subnet_count = 2
-    enable_nat_gateway   = true
-  }
+  # backend = {
+  #   cidr                 = "10.1.0.0/16"
+  #   public_subnet_count  = 2
+  #   private_subnet_count = 2
+  #   enable_nat_gateway   = true
+  # }
 }
 
 # ==========================================
@@ -52,6 +52,6 @@ scaling_config = {
 # ==========================================
 # 5. SECURITY & IAM
 # ==========================================
-create_eks_iam_role  = true
-create_node_iam_role = true
+create_eks_iam_role  = false
+create_node_iam_role = false
 github_repo          = "padie78/sentinel-multi-vpc-eks-infrastructure"
