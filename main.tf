@@ -5,9 +5,11 @@ module "iam" {
   source       = "./modules/iam"
   project_name = var.project_name
   github_repo  = var.github_repo
+  
+  # Forzamos la creación en IAM, pero sin etiquetas (dentro del módulo)
   create_eks_iam_role  = var.create_eks_iam_role
   create_node_iam_role = var.create_node_iam_role
-  tags         = var.tags
+  tags                 = var.tags
 }
 
 # ==========================================
@@ -40,11 +42,17 @@ module "eks" {
   vpc_id     = module.vpcs[each.key].vpc_id
   subnet_ids = module.vpcs[each.key].private_subnets
 
-  # IAM Integration (vía outputs del módulo IAM)
+  # --- EL CAMBIO CRÍTICO AQUÍ ---
+  # Pasamos los ARNs del módulo IAM
   cluster_role_arn = module.iam.cluster_role_arn
   node_role_arn    = module.iam.node_role_arn
-  create_eks_iam_role = var.create_eks_iam_role
   
+  # Le decimos al módulo de EKS que NO intente crear roles internos
+  # Asegúrate de que en tu modules/eks/main.tf uses estas variables
+  # para setear 'create_iam_role = false'
+  create_eks_iam_role  = false 
+  create_node_iam_role = false
+  # ------------------------------
 
   # EKS Configuration
   kubernetes_version             = var.kubernetes_version
@@ -52,15 +60,14 @@ module "eks" {
   instance_types                 = var.instance_types
   node_capacity_type             = var.node_capacity_type
   scaling_config                 = var.scaling_config
-  create_node_iam_role = var.create_node_iam_role
+  
   tags = var.tags
 }
 
 # ==========================================
 # 4. CONNECTIVITY: PEERING & SECURITY
 # ==========================================
-
-# VPC Peering Connection
+# (Se mantiene igual, ya que depende de los IDs generados arriba)
 resource "aws_vpc_peering_connection" "this" {
   for_each = local.vpc_peerings
 
@@ -71,7 +78,6 @@ resource "aws_vpc_peering_connection" "this" {
   tags = merge(var.tags, { Name = each.value.name })
 }
 
-# Routing for Peering
 resource "aws_route" "peering_routes" {
   for_each = local.vpc_peerings
 
@@ -80,7 +86,6 @@ resource "aws_route" "peering_routes" {
   vpc_peering_connection_id = aws_vpc_peering_connection.this[each.key].id
 }
 
-# Cross-VPC Security Rules
 resource "aws_security_group_rule" "cross_vpc_traffic" {
   for_each = local.security_rules
 

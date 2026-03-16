@@ -17,20 +17,37 @@ module "eks" {
   subnet_ids                     = var.subnet_ids
   cluster_endpoint_public_access = var.cluster_endpoint_public_access
 
-  # IAM (Conexión directa con tu módulo local de IAM)
-  create_iam_role = var.create_eks_iam_role
-  
-  # IMPORTANTE: Aquí pasamos el output del módulo IAM directamente
-  iam_role_arn    = var.cluster_role_arn
-  
+  # ==========================================
+  # IAM: CLUSTER CONTROL PLANE
+  # ==========================================
+  # Usamos el rol que viene desde la raíz (creado en modules/iam)
+  create_iam_role          = var.create_eks_iam_role # Será 'false'
+  iam_role_arn             = var.cluster_role_arn
   iam_role_use_name_prefix = false
-  create_cloudwatch_log_group = true # Cámbialo a true ahora que el CLI confirmó que no existen
   
-  enable_irsa     = var.enable_irsa
+  # ==========================================
+  # IAM: MANAGED NODE GROUPS
+  # ==========================================
+  # Aplicamos la configuración de IAM a TODOS los node groups por defecto
+  eks_managed_node_group_defaults = {
+    create_iam_role = var.create_node_iam_role # Será 'false'
+    iam_role_arn    = var.node_role_arn        # Pasamos el ARN de tu módulo IAM
+  }
 
-  # Managed Node Groups (Configurados en tu locals.tf)
+  # Configuración específica de los nodos (instancias, capacidad, etc.)
   eks_managed_node_groups = local.managed_node_group_settings
-  manage_aws_auth_configmap = false # Desactiva la gestión automática para evitar el error
+
+  # ==========================================
+  # LOGS & AUTH
+  # ==========================================
+  # Desactivamos la creación automática de Log Groups para evitar el error 
+  # 'ResourceAlreadyExistsException' que vimos en el apply anterior.
+  create_cloudwatch_log_group = false 
+  
+  # Desactiva la gestión automática para evitar el error de conexión al principio
+  manage_aws_auth_configmap = false 
+  
+  enable_irsa = var.enable_irsa
 
   tags = local.cluster_tags
 }

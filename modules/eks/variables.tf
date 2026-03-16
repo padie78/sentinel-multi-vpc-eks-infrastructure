@@ -43,30 +43,28 @@ variable "cluster_endpoint_public_access" {
 }
 
 # ==========================================
-# 4. IAM INTEGRATION (External ARNs)
+# 4. IAM INTEGRATION (Conexión con módulo IAM)
 # ==========================================
 variable "create_eks_iam_role" {
   type        = bool
-  default     = false
-  description = "Whether to create a new IAM role for the cluster"
+  default     = false # IMPORTANTE: En el módulo EKS debe ser false
+  description = "Controla si el sub-módulo de la comunidad debe crear el rol"
 }
 
 variable "create_node_iam_role" {
   type        = bool
-  default     = true
-  description = "Whether to create a new IAM role for the node groups"
+  default     = false # IMPORTANTE: En el módulo EKS debe ser false
+  description = "Controla si el sub-módulo de la comunidad debe crear el rol de nodos"
 }
 
 variable "cluster_role_arn" {
   type        = string
-  default     = null
-  description = "Existing IAM role ARN for the cluster control plane"
+  description = "ARN del rol creado en el módulo modules/iam"
 }
 
 variable "node_role_arn" {
   type        = string
-  default     = null
-  description = "Existing IAM role ARN for the worker nodes"
+  description = "ARN del rol de nodos creado en el módulo modules/iam"
 }
 
 variable "enable_irsa" {
