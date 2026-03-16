@@ -1,6 +1,12 @@
+# ==========================================
+# EKS MODULE LOCALS
+# ==========================================
+
 locals {
+  # ------------------------------------------------------------------
+  # NODE GROUP SETTINGS
+  # ------------------------------------------------------------------
   managed_node_group_settings = {
-    # 'general' es el nombre del node group
     general = {
       capacity_type  = var.node_capacity_type
       instance_types = var.instance_types
@@ -9,18 +15,22 @@ locals {
       max_size     = var.scaling_config.max_size
       desired_size = var.scaling_config.desired_size
 
-      # Roles de Nodo Dinámicos
+      # Integración de IAM externa
       create_iam_role = var.create_node_iam_role
-      iam_role_arn    = var.create_node_iam_role ? null : var.node_role_arn
+      iam_role_arn    = var.node_role_arn
       
-      # Opcional: Tags específicos para los nodos
       tags = {
         NodeGroup = "general"
+        Component = "WorkerNodes"
       }
     }
   }
 
+  # ------------------------------------------------------------------
+  # CLUSTER METADATA
+  # ------------------------------------------------------------------
   cluster_tags = merge(var.tags, {
     "kubernetes.io/cluster/${var.cluster_name}" = "owned"
+    Provisioner                                 = "Terraform"
   })
 }

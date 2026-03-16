@@ -1,21 +1,30 @@
-# --- Identificación ---
+# ==========================================
+# 1. GLOBAL CONTEXT
+# ==========================================
+variable "aws_region" {
+  type        = string
+  description = "AWS region for deployment"
+}
+
 variable "project_name" {
-  type    = string
-  default = "sentinel"
+  type        = string
+  description = "Prefix for all resource names"
 }
 
 variable "github_repo" {
   type        = string
-  description = "Usuario/Repo para OIDC (ej: diegoliascovich/repo)"
+  description = "Format: owner/repository"
 }
 
 variable "tags" {
-  type = map(string)
+  type        = map(string)
+  default     = {}
 }
 
-# --- Networking (Mapa para for_each) ---
+# ==========================================
+# 2. NETWORKING
+# ==========================================
 variable "vpcs" {
-  description = "Configuración de las VPCs"
   type = map(object({
     cidr                 = string
     public_subnet_count  = number
@@ -24,18 +33,12 @@ variable "vpcs" {
   }))
 }
 
-# --- EKS Config & Capacity (Esto limpia los errores de la imagen) ---
-variable "scaling_config" {
-  type = object({
-    min_size     = number
-    max_size     = number
-    desired_size = number
-  })
-}
-
+# ==========================================
+# 3. EKS CONFIGURATION
+# ==========================================
 variable "kubernetes_version" {
   type    = string
-  default = "1.28"
+  default = "1.31"
 }
 
 variable "cluster_endpoint_public_access" {
@@ -43,23 +46,20 @@ variable "cluster_endpoint_public_access" {
   default = true
 }
 
-variable "node_capacity_type" {
-  type    = string
-  default = "ON_DEMAND"
-}
-
 variable "instance_types" {
   type    = list(string)
   default = ["t3.medium"]
 }
 
-# --- IAM Logic ---
-variable "create_eks_iam_role" {
-  type    = bool
-  default = false
+variable "node_capacity_type" {
+  type    = string
+  default = "ON_DEMAND"
 }
 
-variable "create_node_iam_role" {
-  type    = bool
-  default = false
+variable "scaling_config" {
+  type = object({
+    min_size     = number
+    max_size     = number
+    desired_size = number
+  })
 }

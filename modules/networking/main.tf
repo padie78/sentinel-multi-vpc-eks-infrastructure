@@ -1,20 +1,26 @@
-# --- DATA SOURCES ---
+# ==========================================
+# 1. EXTERNAL DATA SOURCES
+# ==========================================
 data "aws_availability_zones" "available" {
-  state = "available"
+  state = local.az_state_filter
 }
 
-# --- VPC ---
+# ==========================================
+# 2. VIRTUAL PRIVATE CLOUD (VPC)
+# ==========================================
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = var.enable_dns_hostnames
   enable_dns_support   = var.enable_dns_support
 
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-vpc"
-  })
+  tags = merge(local.common_tags, { Name = local.names.vpc })
 }
 
-# --- SUBNETS PÚBLICAS ---
+# ==========================================
+# 3. SUBNET LAYERING
+# ==========================================
+
+# Public Subnets (For IGW and NAT Gateways)
 resource "aws_subnet" "public" {
   count                   = var.public_subnet_count
   vpc_id                  = aws_vpc.this.id
@@ -25,11 +31,11 @@ resource "aws_subnet" "public" {
   tags = merge(
     local.common_tags,
     local.eks_public_tags,
-    { Name = "${local.name_prefix}-pub-${data.aws_availability_zones.available.names[count.index]}" }
+    { Name = local.public_subnet_names[count.index] }
   )
 }
 
-# --- SUBNETS PRIVADAS ---
+# Private Subnets (For EKS Worker Nodes)
 resource "aws_subnet" "private" {
   count             = var.private_subnet_count
   vpc_id            = aws_vpc.this.id
@@ -39,35 +45,45 @@ resource "aws_subnet" "private" {
   tags = merge(
     local.common_tags,
     local.eks_private_tags,
-    { Name = "${local.name_prefix}-priv-${data.aws_availability_zones.available.names[count.index]}" }
+    { Name = local.private_subnet_names[count.index] }
   )
 }
 
-# --- CONECTIVIDAD A INTERNET ---
+# ==========================================
+# 4. INTERNET CONNECTIVITY
+# ==========================================
+
+# Internet Gateway
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
-  tags   = merge(local.common_tags, { Name = "${local.name_prefix}-igw" })
+  tags   = merge(local.common_tags, { Name = local.names.igw })
 }
 
+# Elastic IP for NAT
 resource "aws_eip" "nat" {
   count  = var.enable_nat_gateway ? 1 : 0
   domain = "vpc"
-  tags   = merge(local.common_tags, { Name = "${local.name_prefix}-nat-eip" })
+  tags   = merge(local.common_tags, { Name = local.names.nat_eip })
 }
 
+# NAT Gateway
 resource "aws_nat_gateway" "this" {
   count         = var.enable_nat_gateway ? 1 : 0
   allocation_id = aws_eip.nat[0].id
   subnet_id     = aws_subnet.public[0].id
-  tags          = merge(local.common_tags, { Name = "${local.name_prefix}-nat" })
+  tags          = merge(local.common_tags, { Name = local.names.nat })
 
   depends_on = [aws_internet_gateway.this]
 }
 
-# --- TABLAS DE RUTAS ---
+# ==========================================
+# 5. ROUTING INFRASTRUCTURE
+# ==========================================
+
+# Public Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
-  tags   = merge(local.common_tags, { Name = "${local.name_prefix}-pub-rt" })
+  tags   = merge(local.common_tags, { Name = local.names.public_rt })
 }
 
 resource "aws_route" "public_internet" {
@@ -76,9 +92,10 @@ resource "aws_route" "public_internet" {
   gateway_id             = aws_internet_gateway.this.id
 }
 
+# Private Route Table
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
-  tags   = merge(local.common_tags, { Name = "${local.name_prefix}-priv-rt" })
+  tags   = merge(local.common_tags, { Name = local.names.private_rt })
 }
 
 resource "aws_route" "private_nat" {
@@ -88,7 +105,10 @@ resource "aws_route" "private_nat" {
   nat_gateway_id         = aws_nat_gateway.this[0].id
 }
 
-# --- ASOCIACIONES ---
+# ==========================================
+# 6. ROUTE TABLE ASSOCIATIONS
+# ==========================================
+
 resource "aws_route_table_association" "public" {
   count          = var.public_subnet_count
   subnet_id      = aws_subnet.public[count.index].id
