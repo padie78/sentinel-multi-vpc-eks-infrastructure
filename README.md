@@ -60,3 +60,13 @@ If I had another week, here is what I’d tackle:
 2.  **Cert-Manager:** Automate Let's Encrypt certificates for the Gateway to get proper HTTPS.
 3.  **Observability:** A Prometheus/Grafana stack. Right now, it works, but I want to *see* the latency.
 4.  **True GitOps:** Switch from GitHub Actions to **ArgoCD**. No more `kubectl` in the pipeline—just the cluster syncing itself from Git.
+
+
+## 🛠️ How I would resolve the Configuration Drift (Next Steps)
+
+If I had more time to bring the infrastructure back to a 100% "Pure IaC" state, I would follow this remediation plan:
+
+1. **State Synchronization:** Use `terraform import` for the `aws_vpc_peering_connection` and the manual routing table entries. This would bring the manual "hotfixes" into the Terraform state file without destroying resources.
+2. **Refactor Routing Logic:** Update the Terraform code to dynamically iterate over all VPC route tables using a `for_each` loop, instead of hardcoding the index `[0]`. This ensures high availability across all Availability Zones.
+3. **Formalize Security Groups:** Move the manual ingress rules (port 31193) into the `locals.security_rules` block to ensure that every security requirement is version-controlled.
+4. **Pipeline Re-activation:** Once the state and code are in sync, I would uncomment the `terraform apply` step in GitHub Actions to restore the full GitOps lifecycle.
